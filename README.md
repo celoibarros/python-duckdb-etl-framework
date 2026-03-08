@@ -43,6 +43,27 @@ Examples are available under [`examples/example-configs`](examples/example-confi
 poetry run python src/framework/main.py --config examples/example-configs/csv.yaml
 ```
 
+## Optional Distributed Processing (smallpond)
+
+You can run distributed SQL transforms with [`smallpond`](https://github.com/deepseek-ai/smallpond) by installing the optional extra:
+
+```bash
+poetry install --extras distributed
+```
+
+Then define a transform step with `type: smallpond_sql`:
+
+```yaml
+transform:
+  steps:
+    - type: smallpond_sql
+      input_path: "abfs://container/input/*.parquet"
+      output_path: "abfs://container/output/"
+      sql: "SELECT key, COUNT(*) AS total FROM {0} GROUP BY key"
+      repartition: 8
+      hash_by: key
+```
+
 You can also use a template script:
 
 ```bash

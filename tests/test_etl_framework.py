@@ -49,6 +49,38 @@ output: []
         interpolated = etl._interpolate_sql("SELECT ${name} AS author")
         self.assertIn("'O''Reilly'", interpolated)
 
+    @patch("framework.main.importlib.import_module")
+    def test_smallpond_sql_step(self, mock_import_module):
+        etl = DuckDBETL.__new__(DuckDBETL)
+        etl._interpolate_sql = lambda value: value
+
+        mock_smallpond = MagicMock()
+        mock_session = MagicMock()
+        mock_df = MagicMock()
+        mock_result = MagicMock()
+
+        mock_smallpond.init.return_value = mock_session
+        mock_session.read_parquet.return_value = mock_df
+        mock_df.repartition.return_value = mock_df
+        mock_session.partial_sql.return_value = mock_result
+        mock_import_module.return_value = mock_smallpond
+
+        step = {
+            "type": "smallpond_sql",
+            "input_path": "abfs://input/*.parquet",
+            "output_path": "abfs://output/",
+            "sql": "SELECT * FROM {0}",
+            "repartition": 4,
+            "hash_by": "id",
+        }
+        etl._execute_smallpond_sql_step(step)
+
+        mock_smallpond.init.assert_called_once()
+        mock_session.read_parquet.assert_called_once_with("abfs://input/*.parquet")
+        mock_df.repartition.assert_called_once_with(4, hash_by="id")
+        mock_session.partial_sql.assert_called_once_with("SELECT * FROM {0}", mock_df)
+        mock_result.write_parquet.assert_called_once_with("abfs://output/")
+
     @patch("framework.main.CloudFileProcessor._init_filesystems")
     def test_get_filesystem_for_local(self, _):
         processor = CloudFileProcessor.__new__(CloudFileProcessor)
