@@ -4,6 +4,25 @@ version = "0.0.4"
 description = "Data Engineering ETL Framework"
 authors = ["Carlos Elói Barros <eloi.barros@thedatascientists.com>"]
 readme = "README.md"
+homepage = "https://github.com/celoibarros/python-duckdb-etl-framework"
+repository = "https://github.com/celoibarros/python-duckdb-etl-framework"
+keywords = [
+    "duckdb",
+    "etl",
+    "data-engineering",
+    "azure",
+    "abfs",
+    "python",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 packages = [
     { include = "framework", from = "src" }
     , { include = "database", from = "src" }

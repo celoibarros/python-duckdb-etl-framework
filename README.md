@@ -4,6 +4,8 @@
 
 This repository provides a lightweight ETL framework powered by **DuckDB** for configurable extract, transform, and load pipelines across local and cloud data sources.
 
+Maintainer: [Carlos Eloi Barros](https://github.com/celoibarros)
+
 ## Attribution
 
 This project was originally based on work from:
@@ -15,7 +17,7 @@ The framework in this repository has been adapted and extended for additional ru
 
 - Lightweight execution with DuckDB
 - Config-driven ETL pipelines
-- Support for file, S3, ABFS, and SQL Server sources
+- Support for local files, Azure Blob Storage (ABFS), and SQL Server sources
 - SQL and Python transform steps
 - Output export with partitioning/overwrite controls
 
@@ -29,13 +31,7 @@ This project is managed with Poetry:
 poetry install
 ```
 
-If you need AWS-backed reads/writes, export credentials before running:
-
-```bash
-export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
-export AWS_REGION="us-east-1"
-```
+For Azure-backed reads/writes, configure your Azure account and credentials in the ETL config (for example: account name, tenant ID, managed identity, service principal, or account key).
 
 ### 2) Prepare a config file
 
