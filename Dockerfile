@@ -1,24 +1,17 @@
 FROM python:3.11-slim
 
 WORKDIR /app
-COPY requirements.txt requirements.txt
-COPY etl_framework.py .
-COPY transforms/ ./transforms/
 
-# Install AWS CLI
+# pyodbc may require ODBC runtime libraries at execution time.
 RUN apt-get update && \
-    apt-get install -y awscli && \
-    apt-get clean && \
+    apt-get install -y --no-install-recommends unixodbc && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY examples ./examples
 
-# Azure configuration
-ENV AZURE_ACCOUNT=your_account
-ENV AZURE_SAS_TOKEN="?sv=..."
+RUN python -m pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
 
-# AWS configuration
-ENV AWS_ACCESS_KEY=AKIA...
-ENV AWS_SECRET_KEY=...
-
-CMD ["python", "src/etl_framework.py", "--config", "/path/to/config.yaml"]
+CMD ["python", "src/framework/main.py", "--config", "examples/example-configs/csv.yaml"]

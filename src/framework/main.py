@@ -86,7 +86,7 @@ class CloudFileProcessor:
         scheme = urlparse(path).scheme.split("+")[0]
         return self.filesystems.get(scheme, self.filesystems["file"])
 
-    def download_to_local(self, path: str, account: str) -> str:
+    def download_to_local(self, path: str, account: str) -> tuple[str, str]:
         fs = self.filesystems.get(f"abfs_{account}")
         if not fs:
             raise ValueError(f"No ABFS filesystem found for account '{account}'")
@@ -118,7 +118,7 @@ class CloudFileProcessor:
             f"(local pattern for DuckDB: {local_pattern})"
         )
 
-        return local_pattern
+        return local_pattern, local_dir
 
 
 class DuckDBETL:
@@ -193,11 +193,6 @@ class DuckDBETL:
             logger.warning(f"Loading extension: {ext}")
             conn.execute(f"INSTALL {ext}; LOAD {ext};")
 
-        if "aws" in self.config["duckdb"]:
-            aws_cfg = self.config["duckdb"]["aws"]
-            conn.execute(f"SET s3_region='{aws_cfg['region']}';")
-            conn.execute(f"SET s3_access_key_id='{os.getenv('AWS_ACCESS_KEY')}';")
-            conn.execute(f"SET s3_secret_access_key='{os.getenv('AWS_SECRET_KEY')}';")
         return conn
 
     def load_data(self):
@@ -216,7 +211,7 @@ class DuckDBETL:
         logger.warning(f"{prefix}Loading table: {name}")
         type_ = table.get("type", "file")
 
-        if type_ in ["abfs", "file", "s3"]:
+        if type_ in ["abfs", "file"]:
             path = table["path"]
             account = table.get("account_name")
             use_local = table.get("local_download", False)
@@ -225,8 +220,8 @@ class DuckDBETL:
             self.conn.register_filesystem(fs)
 
             if use_local and type_ == "abfs":
-                path = self.file_processor.download_to_local(path, account)
-                self.temp_local_paths.append(path)
+                path, temp_dir = self.file_processor.download_to_local(path, account)
+                self.temp_local_paths.append(temp_dir)
                 fs = self.file_processor.get_filesystem(path, account=account)
                 self.conn.register_filesystem(fs)
 
@@ -439,7 +434,8 @@ class DuckDBETL:
             if value is None or value == "":
                 return "NULL"
             elif isinstance(value, str):
-                return f"'{value}'"
+                safe_value = value.replace("'", "''")
+                return f"'{safe_value}'"
             else:
                 return str(value)
 

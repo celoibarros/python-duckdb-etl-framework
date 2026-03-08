@@ -41,6 +41,14 @@ output: []
         self.assertIn("123", interpolated)
         self.assertIn("NULL", interpolated)
 
+    def test_sql_interpolation_escapes_quotes(self):
+        etl = DuckDBETL.__new__(DuckDBETL)
+        etl.parameters = {"name": "O'Reilly"}
+        etl.conn = MagicMock()
+        etl.conn.execute.return_value.fetchall.return_value = []
+        interpolated = etl._interpolate_sql("SELECT ${name} AS author")
+        self.assertIn("'O''Reilly'", interpolated)
+
     @patch("framework.main.CloudFileProcessor._init_filesystems")
     def test_get_filesystem_for_local(self, _):
         processor = CloudFileProcessor.__new__(CloudFileProcessor)
