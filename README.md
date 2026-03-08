@@ -63,14 +63,6 @@ docker build -t duckdb-etl-framework .
 docker run --rm duckdb-etl-framework python src/framework/main.py --config /app/examples/example-configs/csv.yaml
 ```
 
-## JTA References
-
-Current code references `JTA` in Azure credential handling:
-- `src/azure/jta_credential.py`
-- `src/framework/main.py`
-
-`JTAChainedTokenCredential` is kept as a backward-compatible alias for `ChainedTokenCredential`.
-
 ## Contributing
 
 Contributions are welcome via issues and pull requests.
