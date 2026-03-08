@@ -6,7 +6,6 @@ authors = ["Carlos Elói Barros <eloi.barros@thedatascientists.com>"]
 readme = "README.md"
 packages = [
     { include = "framework", from = "src" }
-    , { include = "azure", from = "src" }
     , { include = "database", from = "src" }
 ]
 

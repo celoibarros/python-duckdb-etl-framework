@@ -14,7 +14,7 @@ import psutil
 import yaml
 from adlfs import AzureBlobFileSystem
 
-from azure.jta_credential import AzureCredential, TokenCredential
+from framework.azure_credential import AzureCredential, TokenCredential
 from azure.keyvault.secrets import SecretClient
 from database.connection_string import valid_connection_string
 
@@ -146,9 +146,9 @@ class DuckDBETL:
                     "Key Vault URL not defined in config under duckdb.vault"
                 )
             if self.kv_vault_url not in self.kv_clients:
-                jta_credential = AzureCredential().get_credential()
+                azure_credential = AzureCredential().get_credential()
                 self.kv_clients[self.kv_vault_url] = SecretClient(
-                    vault_url=self.kv_vault_url, credential=jta_credential
+                    vault_url=self.kv_vault_url, credential=azure_credential
                 )
             return self.kv_clients[self.kv_vault_url].get_secret(secret_name).value
 
