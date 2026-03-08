@@ -1,0 +1,11 @@
+duckdb:
+  path: ':memory:'
+input:
+  tables:
+    - name: sample_table
+      path: file:///data/test.csv
+      format: csv
+transform:
+  steps:
+    - sql: "SELECT COUNT(*) FROM sample_table"
+output: []
