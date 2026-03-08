@@ -1,0 +1,28 @@
+duckdb:
+  path: azure_etl.duckdb
+  extensions: [azure, httpfs]
+  azure:
+    account_name: myaccount
+
+input:
+  tables:
+    - name: raw_sales
+      path: abfs://sales-container/2024/*.parquet
+      format: parquet
+      mode: incremental
+
+transform:
+  steps:
+    - type: sql
+      sql: >
+        CREATE TEMP TABLE cleaned AS
+        SELECT *, TRIM(customer_name) AS customer_name_clean
+        FROM raw_sales
+
+    - type: python
+      script: example-transforms/sales_metrics.py
+
+output:
+  table: cleaned
+  path: abfs://processed-container/sales_output/
+  format: parquet
