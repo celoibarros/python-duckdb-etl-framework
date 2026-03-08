@@ -1,0 +1,17 @@
+duckdb:
+  path: ":memory:"
+  lazy_load: true
+
+input:
+  tables: []
+
+transform:
+  steps:
+    - type: smallpond_sql
+      input_path: "abfs://my-container/input/*.parquet"
+      output_path: "abfs://my-container/output/"
+      sql: "SELECT key, COUNT(*) AS total FROM {0} GROUP BY key"
+      repartition: 8
+      hash_by: key
+
+output: []

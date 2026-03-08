@@ -1,5 +1,5 @@
 # etl_framework.py (with lazy loading and memory usage logging)
-import importlib.util
+import importlib
 import logging
 import os
 import re
@@ -377,6 +377,9 @@ class DuckDBETL:
                 logger.warning(f"Executing script from path {script}")
                 self._execute_python_transform(script)
                 log_memory_usage(f"After Python script {script}")
+            elif step["type"] == "smallpond_sql":
+                self._execute_smallpond_sql_step(step)
+                log_memory_usage("After smallpond_sql step")
 
             if self.config.get("clean_unused", False):
                 self.clean_unused_tables()
@@ -399,6 +402,37 @@ class DuckDBETL:
             module.transform(**context)
         else:
             raise AttributeError(f"Transform script {script_path} has no 'transform' function")
+
+    def _execute_smallpond_sql_step(self, step):
+        try:
+            smallpond = importlib.import_module("smallpond")
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "smallpond is not installed. Install optional dependency "
+                "with: pip install smallpond"
+            ) from exc
+
+        sql = self._interpolate_sql(step.get("sql") or step.get("query"))
+        input_path = self._interpolate_sql(step["input_path"])
+        output_path = self._interpolate_sql(step["output_path"])
+
+        logger.warning(
+            f"Executing distributed SQL with smallpond: input={input_path}, output={output_path}"
+        )
+
+        sp = smallpond.init()
+        dataframe = sp.read_parquet(input_path)
+
+        repartition = step.get("repartition")
+        if repartition:
+            hash_by = step.get("hash_by")
+            if hash_by:
+                dataframe = dataframe.repartition(repartition, hash_by=hash_by)
+            else:
+                dataframe = dataframe.repartition(repartition)
+
+        result = sp.partial_sql(sql, dataframe)
+        result.write_parquet(output_path)
 
     def _interpolate_sql(self, raw_sql):
         def replacer(match):

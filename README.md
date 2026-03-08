@@ -43,6 +43,72 @@ Examples are available under [`examples/example-configs`](examples/example-confi
 poetry run python src/framework/main.py --config examples/example-configs/csv.yaml
 ```
 
+## Optional Distributed Processing (smallpond)
+
+You can run distributed SQL transforms with [`smallpond`](https://github.com/deepseek-ai/smallpond) by installing the optional extra:
+
+```bash
+poetry install --extras distributed
+```
+
+If you are not using Poetry:
+
+```bash
+pip install "data-engineering-etl-framework[distributed]"
+```
+
+### Distributed Install + Run (Local Example)
+
+1. Install distributed dependencies:
+
+```bash
+poetry install --extras distributed
+```
+
+2. Generate local parquet sample input:
+
+```bash
+poetry run python examples/smallpond/generate_local_parquet.py
+```
+
+3. Run ETL with the local distributed config:
+
+```bash
+poetry run python src/framework/main.py --config examples/example-configs/smallpond-local.yaml
+```
+
+### smallpond Config Examples
+
+Local filesystem example:
+
+```yaml
+transform:
+  steps:
+    - type: smallpond_sql
+      input_path: "examples/smallpond/input/*.parquet"
+      output_path: "examples/smallpond/output/"
+      sql: "SELECT customer_id, SUM(amount) AS total_amount FROM {0} GROUP BY customer_id"
+      repartition: 4
+      hash_by: customer_id
+```
+
+Azure ABFS example:
+
+```yaml
+transform:
+  steps:
+    - type: smallpond_sql
+      input_path: "abfs://container/input/*.parquet"
+      output_path: "abfs://container/output/"
+      sql: "SELECT key, COUNT(*) AS total FROM {0} GROUP BY key"
+      repartition: 8
+      hash_by: key
+```
+
+See ready-to-use files:
+- `examples/example-configs/smallpond-local.yaml`
+- `examples/example-configs/smallpond-azure.yaml`
+
 You can also use a template script:
 
 ```bash
