@@ -130,6 +130,47 @@ class DuckDBETL:
         self.file_processor = file_processor or CloudFileProcessor(self.config)
         self.temp_tables = []
         self.temp_local_paths = []
+        self._registered_fs_by_protocol = {}
+
+    def _safe_register_filesystem(self, fs) -> None:
+        """
+        Register an fsspec filesystem with DuckDB, swapping out whatever
+        filesystem currently owns the same protocol.
+
+        DuckDB's ``register_filesystem()`` allows only one filesystem per
+        protocol name (e.g. "abfs"/"az") for the lifetime of a connection —
+        a second call for an already-registered protocol raises
+        ``duckdb.InvalidInputException`` instead of replacing it. Every
+        ``AzureBlobFileSystem`` instance reports the same protocol
+        regardless of storage account, so switching between accounts (e.g.
+        two exports to two different storage accounts) requires explicitly
+        unregistering the previous filesystem first. Each caller must
+        immediately follow this with the read/write that needs ``fs`` —
+        the swap only holds until the next call for the same protocol.
+
+        Parameters
+        ----------
+        fs : fsspec.AbstractFileSystem
+            Filesystem instance to register.
+        """
+        protocol = fs.protocol
+        protocols = (protocol,) if isinstance(protocol, str) else tuple(protocol)
+
+        for p in protocols:
+            existing = self._registered_fs_by_protocol.get(p)
+            if existing is fs:
+                return
+            if existing is not None:
+                logger.warning(
+                    f"Unregistering previous filesystem for protocol '{p}' "
+                    f"to switch storage accounts"
+                )
+                self.conn.unregister_filesystem(p)
+                del self._registered_fs_by_protocol[p]
+
+        self.conn.register_filesystem(fs)
+        for p in protocols:
+            self._registered_fs_by_protocol[p] = fs
 
     def load_config(self, config_path):
         logger.warning(f"Loading config from {config_path}")
@@ -217,13 +258,13 @@ class DuckDBETL:
             use_local = table.get("local_download", False)
             format = table["format"]
             fs = self.file_processor.get_filesystem(path, account=account)
-            self.conn.register_filesystem(fs)
+            self._safe_register_filesystem(fs)
 
             if use_local and type_ == "abfs":
                 path, temp_dir = self.file_processor.download_to_local(path, account)
                 self.temp_local_paths.append(temp_dir)
                 fs = self.file_processor.get_filesystem(path, account=account)
-                self.conn.register_filesystem(fs)
+                self._safe_register_filesystem(fs)
 
             self.conn.execute(
                 f"""
@@ -447,19 +488,18 @@ class DuckDBETL:
             partition_by = output.get("partition_by", [])
             overwrite = output.get("overwrite", True)
             account = output.get("account_name", None)
-            
-            fs = self.file_processor.get_filesystem(path, account=account)
-            self.conn.register_filesystem(fs)
-            
+
             logger.warning(f"Exporting table {table} to {path} as {fmt}")
-            
+
             if self.config["duckdb"].get("debug", True):
                 logger.warning(f"Output table {table} preview")
                 self.conn.sql(f"""
                     SELECT * FROM {table} limit 5
                 """).show(max_width=250)
-                       
-            logger.warning(f"Exporting table {table} to {path} as {fmt}")
+
+            fs = self.file_processor.get_filesystem(path, account=account)
+            self._safe_register_filesystem(fs)
+
             stmt = f"COPY {table} TO '{path}' (FORMAT {fmt}"
             if partition_by:
                 stmt += f", PARTITION_BY ({', '.join(partition_by)})"
@@ -467,6 +507,7 @@ class DuckDBETL:
                 stmt += ", OVERWRITE_OR_IGNORE"
             stmt += ")"
             self.conn.execute(stmt)
+
             log_memory_usage(f"After exporting {table}")
 
 
